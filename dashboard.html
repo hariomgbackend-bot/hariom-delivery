@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>Deliveries</h2>
+<ul id="list"></ul>
+
+<script>
+async function loadDeliveries() {
+  const res = await fetch("http://localhost:5000/deliveries");
+  const data = await res.json();
+
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  data.forEach(d => {
+    const li = document.createElement("li");
+    li.innerText = d.customer_name + " - " + d.status;
+    list.appendChild(li);
+  });
+}
+
+loadDeliveries();
+</script>
+
+</body>
+</html>

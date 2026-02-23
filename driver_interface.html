@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Driver Panel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+@media(max-width:700px){
+  .popup-box{
+    width:95%;
+    margin:20px auto;
+    border-radius:16px;
+  }
+}
+
+@media(max-width:700px){
+
+  table, thead, tbody, th, td, tr{
+    display:block;
+  }
+
+  thead{
+    display:none;
+  }
+
+  tr{
+    background:white;
+    margin-bottom:12px;
+    padding:12px;
+    border-radius:10px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.08);
+  }
+
+  td{
+    border:none;
+    padding:6px 0;
+    font-size:14px;
+  }
+
+  td::before{
+    font-weight:bold;
+    display:block;
+    color:#64748b;
+    font-size:12px;
+  }
+
+}
+
+body{
+  font-family: Arial, Helvetica, sans-serif;
+  margin:0;
+  background:#f4f6f9;
+}
+
+.header{
+  background:linear-gradient(90deg,#0f4c81,#2563eb);
+  color:white;
+  padding:18px;
+  font-size:22px;
+  font-weight:bold;
+  text-align:center;
+  box-shadow:0 2px 6px rgba(0,0,0,0.2);
+}
+
+.container{
+  padding:20px;
+  max-width:1100px;
+  margin:auto;
+}
+
+.card{
+  background:white;
+  padding:20px;
+  border-radius:12px;
+  box-shadow:0 3px 10px rgba(0,0,0,0.1);
+  margin-bottom:20px;
+}
+
+select, button{
+  padding:10px 14px;
+  border-radius:8px;
+  border:1px solid #ccc;
+  font-size:14px;
+}
+
+button{
+  background:#2563eb;
+  color:white;
+  border:none;
+  cursor:pointer;
+  transition:0.2s;
+  min-height:42px;
+  font-size:15px;
+}
+
+button:hover{
+  background:#1e4fd1;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+}
+
+th,td{
+  padding:12px;
+  border-bottom:1px solid #eee;
+  text-align:left;
+}
+
+th{
+  background:#f1f5f9;
+}
+
+@media(max-width:700px){
+  table{font-size:12px;}
+}
+
+.popup{
+  display:none;
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.5);
+}
+
+.popup-box{
+  background:white;
+  width:95%;
+  max-width:450px;
+  margin:60px auto;
+  padding:20px;
+  border-radius:12px;
+  max-height:85vh;
+  overflow-y:auto;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">Driver Panel</div>
+
+<div class="container">
+
+<div class="card">
+<label>Select Driver:</label>
+<select id="driverSelect"></select>
+<div style="margin-top:10px;">
+<input type="password" id="driverPin" placeholder="Enter 6-digit PIN" maxlength="6" style="padding:8px;border-radius:6px;border:1px solid #ccc;">
+<button id="unlockBtn" onclick="unlockDriver()">Unlock</button>
+</div>
+<button id="changeDriverBtn"
+style="margin-top:10px;background:#dc2626;display:none;"
+onclick="logoutDriver()">Change Driver</button>
+</div>
+
+<div class="card">
+<h3>My Deliveries</h3>
+<div id="deliveryCount" style="margin-bottom:8px;font-weight:600;color:#1e3a8a;"></div>
+
+<table>
+<thead>
+<tr>
+<th>Customer</th>
+<th>Address</th>
+<th>Product</th>
+<th>Status</th>
+<th>Priority</th>
+<th>View</th>
+</tr>
+</thead>
+<tbody id="deliveryTable"></tbody>
+</table>
+</div>
+
+</div>
+
+<!-- POPUP -->
+<div id="popup" class="popup">
+<div class="popup-box">
+<div id="popupContent"></div>
+<br>
+
+</div>
+</div>
+
+<script>
+const BASE_URL = window.location.origin;
+
+let currentDeliveryId = null;
+let currentStatus = null;
+let etaInterval = null;
+let driverRefreshInterval = null;
+let currentDriverId = null;
+let currentDriverPin = null;
+let pinAttempts = 0;
+let isLocked = false;
+
+/* LOAD DRIVERS */
+async function loadDrivers(){
+  const res = await fetch("${BASE_URL}/driver-list-public")
+  const data = await res.json();
+
+  const sel = document.getElementById("driverSelect");
+  sel.innerHTML="";
+
+  data.forEach(d=>{
+    const o=document.createElement("option");
+    o.value=d.driver_name;
+    o.text=d.driver_name;
+    o.dataset.id = d.id;
+    sel.appendChild(o);
+  });
+
+  if(data.length>0) sel.value=data[0].driver_name;
+
+}
+
+//UNLOCK DRIVERS
+
+async function unlockDriver(){
+
+  const driverSelect = document.getElementById("driverSelect");
+  const pinInput = document.getElementById("driverPin");
+
+  const driverName = driverSelect.value;
+  const pin = pinInput.value;
+
+  if(!driverName || !pin){
+    alert("Select driver and enter PIN");
+    return;
+  }
+
+  // get driver ID from dropdown (we fix next)
+  const driverId = driverSelect.options[driverSelect.selectedIndex].dataset.id;
+
+  const res = await fetch("${BASE_URL}/driverDeliveries",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      driver_id: driverId,
+      pin: pin
+    })
+  });
+
+  const data = await res.json();
+
+  if(!res.ok){
+
+  pinAttempts++;
+
+  if(pinAttempts >= 7){
+    isLocked = true;
+
+    alert("Too many incorrect attempts.\nDriver access locked.\nPlease contact admin.");
+
+    document.getElementById("driverPin").disabled = true;
+    document.getElementById("driverSelect").disabled = true;
+
+    return;
+  }
+
+  alert("Invalid PIN (" + pinAttempts + "/7)");
+  return;
+  }
+
+currentDriverId = driverId;
+currentDriverPin = pin;
+
+// reset attempts after correct PIN
+pinAttempts = 0;
+isLocked = false;
+
+driverSelect.disabled = true;
+pinInput.style.display = "none";
+document.getElementById("unlockBtn").style.display = "none";
+
+document.getElementById("changeDriverBtn").style.display = "inline-block";
+
+renderDeliveries(data);
+startDriverAutoRefresh();
+}
+
+//RENDER DELIVERIES
+
+function renderDeliveries(data){
+
+  data = data.filter(d => d.status !== "delivered");
+
+  document.getElementById("deliveryCount").innerText =
+  "Total Active Deliveries: " + data.length;
+
+  const table = document.getElementById("deliveryTable");
+  table.innerHTML="";
+
+  data.forEach(d=>{
+
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td data-label="Customer">${d.customer_name}</td>
+      <td data-label="Address">${d.address}</td>
+      <td data-label="Product">${d.product_name}</td>
+      <td data-label="Status">${d.status}</td>
+      <td data-label="Priority">${d.priority || "normal"}</td>
+      <td data-label="Action">
+      <button style="width:100%;padding:8px;border-radius:8px;"
+      onclick="openDelivery('${d.id}')">View</button>
+      </td>
+      `;
+
+    table.appendChild(row);
+  });
+}
+
+
+/* OPEN DELIVERY */
+async function openDelivery(id){
+
+  const res = await fetch(`${BASE_URL}/delivery/${id}`);
+  const d = await res.json();
+
+  currentDeliveryId=id;
+  currentStatus=(d.status||"").toLowerCase();
+
+  let uploadField="";
+
+  if(currentStatus==="pending"){
+    uploadField=`Upload Loaded Photo:<br><input type="file"
+       id="photo"
+       accept="image/png,image/jpeg,image/jpg,image/webp"
+       capture="environment"
+       style="margin-top:6px;padding:6px;border:1px solid #ddd;border-radius:6px;width:100%;"><br><br>`;
+  }
+  else if(currentStatus==="loaded"){
+    uploadField=`Upload Delivered Photo:<br><input type="file"
+       id="photo"
+       accept="image/png,image/jpeg,image/jpg,image/webp"
+       capture="environment"
+       style="margin-top:6px;padding:6px;border:1px solid #ddd;border-radius:6px;width:100%;"><br><br>`;
+  }
+
+  popupContent.innerHTML=`
+
+<h2 style="margin-top:0;color:#1e3a8a;font-size:22px">
+Delivery Details
+</h2>
+
+<div style="font-size:15px;line-height:1.8">
+
+<div><b>Customer:</b> ${d.customer_name}</div>
+
+<div>
+<b>Phone:</b> 
+<a href="tel:${d.phone}" style="color:#2563eb;text-decoration:none;font-weight:600">
+${d.phone}
+</a>
+</div>
+
+${d.alternate_phone ? `
+<div style="margin-top:4px;">
+<b>Alternate Phone:</b> 
+<a href="tel:${d.alternate_phone}" 
+style="color:#2563eb;text-decoration:none;font-weight:600">
+${d.alternate_phone}
+</a>
+</div>
+` : ""}
+
+<div><b>Address:</b> ${d.address}</div>
+
+<div style="margin-top:6px;">
+<button onclick="navigateTo('${encodeURIComponent(d.address)}')" 
+style="background:#16a34a;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;">
+Navigate
+</button>
+</div>
+
+<br>
+
+<div><b>Product:</b> ${d.product_name}</div>
+
+<div style="margin-top:8px;">
+<b>Status:</b> 
+<span style="
+padding:4px 10px;
+border-radius:14px;
+font-size:13px;
+font-weight:600;
+text-transform:capitalize;
+background:${
+  d.status === "pending" ? "#e2e8f0" :
+  d.status === "loaded" ? "#dbeafe" :
+  "#dcfce7"
+};
+color:${
+  d.status === "pending" ? "#334155" :
+  d.status === "loaded" ? "#1d4ed8" :
+  "#166534"
+};
+">
+${d.status}
+</span>
+</div>
+
+<div style="margin-top:6px;">
+<b>Priority:</b> 
+<span style="
+padding:4px 10px;
+border-radius:14px;
+font-size:13px;
+font-weight:600;
+background:${d.priority==="urgent" ? "#fee2e2" : "#f1f5f9"};
+color:${d.priority==="urgent" ? "#b91c1c" : "#334155"};
+">
+${d.priority || "normal"}
+</span>
+</div>
+
+<br>
+
+<div><b>Estimated Delivery Time:</b> ${d.estimated_delivery_time || "Not Set"}</div>
+<div id="etaCountdown" style="font-weight:600;color:#b91c1c;"></div>
+
+<br>
+
+<div style="
+background:#fef9c3;
+padding:10px;
+border-radius:8px;
+margin-bottom:10px;
+">
+<b>Driver Instructions:</b><br>
+${d.driver_instructions && d.driver_instructions !== "none"
+  ? d.driver_instructions
+  : "No special instructions"}
+</div>
+
+<div style="
+background:#f1f5f9;
+padding:10px;
+border-radius:8px;
+margin-bottom:10px;
+">
+<b>Freight Charged:</b> ${d.freight_charged ? "Yes" : "No"}<br>
+<b>Freight Amount:</b> ${d.freight_amount || "0"}
+</div>
+
+<br>
+
+${uploadField}
+<div style="display:flex;gap:10px">
+<button onclick="updateDelivery()"
+style="background:#2563eb;color:white;border:none;padding:10px 18px;border-radius:8px;font-size:15px;cursor:pointer;">
+Update
+</button>
+
+<button onclick="closePopup()"
+style="background:#64748b;color:white;border:none;padding:10px 18px;border-radius:8px;font-size:15px;cursor:pointer;">
+Close
+</button>
+</div>
+
+</div>
+`;
+
+
+  startETACountdown(d.estimated_delivery_time);
+  popup.style.display="block";
+}
+
+/*-----------ETA Timer------------------------*/
+
+function startETACountdown(etaTime){
+
+  if(!etaTime) return;
+
+  const countdownEl = document.getElementById("etaCountdown");
+
+  function update(){
+
+    const now = new Date();
+    const eta = new Date(etaTime);
+
+    const diff = eta - now;
+
+    if(diff <= 0){
+      countdownEl.innerText = "⚠ Delivery Overdue";
+      countdownEl.style.color = "#dc2626";
+      return;
+    }
+
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+
+    if(hours > 0){
+      countdownEl.innerText = `⏱ ${hours}h ${remainingMinutes}m remaining`;
+    } else {
+      countdownEl.innerText = `⏱ ${remainingMinutes}m remaining`;
+    }
+
+  }
+
+  update();
+  if(etaInterval){
+  clearInterval(etaInterval);
+}
+
+etaInterval = setInterval(update, 60000);
+}
+
+function navigateTo(address){
+
+  if(!address){
+    alert("No address available");
+    return;
+  }
+
+  const decodedAddress = decodeURIComponent(address);
+
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(decodedAddress)}`;
+
+  window.open(mapsUrl, "_blank");
+}
+
+/*COMPRESS IMAGE */ 
+async function compressImage(file){
+
+  return new Promise((resolve) => {
+
+    const reader = new FileReader();
+
+    reader.onload = function(event){
+      const img = new Image();
+
+      img.onload = function(){
+
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        const maxWidth = 1280;
+
+        let width = img.width;
+        let height = img.height;
+
+        if(width > maxWidth){
+          height = height * (maxWidth / width);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob((blob)=>{
+          resolve(blob);
+        }, "image/jpeg", 0.7); // 70% quality
+      };
+
+      img.src = event.target.result;
+    };
+
+    reader.readAsDataURL(file);
+  });
+}
+
+/*AUTO REFRESH */ 
+
+function startDriverAutoRefresh(){
+
+  if(driverRefreshInterval){
+    clearInterval(driverRefreshInterval);
+  }
+
+  driverRefreshInterval = setInterval(()=>{
+
+    const popup = document.getElementById("popup");
+
+    // Only refresh if popup is closed
+    if(popup.style.display !== "block"){
+      if(currentDriverId){
+      unlockDriver();
+      }
+    }
+
+  }, 30000); // 30 seconds
+}
+
+/* UPDATE DELIVERY */
+async function updateDelivery(){
+
+  const fileInput=document.getElementById("photo");
+  if(!fileInput.files.length){ alert("Upload photo"); return; }
+
+  const file = fileInput.files[0];
+
+if(!file.type.startsWith("image/")){
+  alert("Only image files allowed");
+  return;
+}
+
+// Compress image
+const compressedBlob = await compressImage(file);
+
+const formData = new FormData();
+formData.append("photo", compressedBlob, "upload.jpg");
+
+  navigator.geolocation.getCurrentPosition(async(pos)=>{
+
+    formData.append("lat",pos.coords.latitude);
+    formData.append("lng",pos.coords.longitude);
+    formData.append("driver_id", currentDriverId);
+    formData.append("pin", currentDriverPin);
+
+    if(currentStatus==="pending"){
+      await fetch(`${BASE_URL}/markLoaded/${currentDeliveryId}`,{method:"POST",body:formData});
+    }
+    else{
+      await fetch(`${BASE_URL}/markDelivered/${currentDeliveryId}`,{method:"POST",body:formData});
+    }
+
+    closePopup();
+    unlockDriver();
+  });
+}
+
+
+function closePopup(){
+  popup.style.display="none";
+
+  if(etaInterval){
+    clearInterval(etaInterval);
+    etaInterval = null;
+  }
+}
+
+//logout
+function logoutDriver(){
+
+  currentDriverId = null;
+  currentDriverPin = null;
+
+  document.getElementById("driverSelect").disabled = false;
+  document.getElementById("driverPin").style.display = "inline-block";
+  document.getElementById("driverPin").value = "";
+
+  document.getElementById("unlockBtn").style.display = "inline-block";
+  document.getElementById("changeDriverBtn").style.display = "none";
+
+  document.getElementById("deliveryTable").innerHTML = "";
+  document.getElementById("deliveryCount").innerText = "";
+}
+
+loadDrivers();
+//startDriverAutoRefresh();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>Create Delivery</h2>
+
+<input id="name" placeholder="Customer Name"><br><br>
+<input id="phone" placeholder="Phone"><br><br>
+<input id="address" placeholder="Address"><br><br>
+<input id="product" placeholder="Product"><br><br>
+
+<select id="driver"></select>
+<br><br>
+
+<button onclick="submitData()">Create Delivery</button>
+
+<script>
+async function submitData() {
+
+    const selectedDriver = document.getElementById("driver");
+
+    const data = {
+      customer_name: document.getElementById("name").value,
+      phone: document.getElementById("phone").value,
+      address: document.getElementById("address").value,
+      product_name: document.getElementById("product").value,
+
+      assigned_driver_id: selectedDriver.value,
+      assigned_driver_name: selectedDriver.options[selectedDriver.selectedIndex].text,
+
+      status: "pending"
+    };
+
+    await fetch("http://localhost:5000/createDelivery", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(data)
+    });
+
+    alert("Delivery Created");
+}
+
+async function loadDrivers(){
+  const res = await fetch("http://localhost:5000/drivers");
+  const data = await res.json();
+
+  const dropdown = document.getElementById("driver");
+  dropdown.innerHTML = "";
+
+  data.forEach(d=>{
+    const opt = document.createElement("option");
+    opt.value = d.id;
+    opt.text = d.driver_name;
+    dropdown.appendChild(opt);
+  });
+}
+
+/* IMPORTANT: load drivers when page opens */
+loadDrivers();
+</script>
+
+</body>
+</html>

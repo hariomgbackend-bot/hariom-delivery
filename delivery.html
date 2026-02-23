@@ -1,0 +1,66 @@
+<h2>Delivery Details</h2>
+
+<div id="info"></div>
+
+<br>
+
+<h3>Loaded</h3>
+<input type="file" id="loadedPhoto">
+<button onclick="markLoaded()">Mark Loaded</button>
+
+<br><br>
+
+<h3>Delivered</h3>
+<input type="file" id="deliveredPhoto">
+<button onclick="markDelivered()">Mark Delivered</button>
+
+<script>
+
+const params = new URLSearchParams(window.location.search);
+const deliveryId = params.get("id");
+
+async function loadInfo(){
+  const res = await fetch("http://localhost:5000/delivery/"+deliveryId);
+  const d = await res.json();
+
+  document.getElementById("info").innerHTML = `
+      <b>${d.customer_name}</b><br>
+      ${d.address}<br>
+      ${d.product_name}
+  `;
+}
+
+async function markLoaded(){
+
+  const file = document.getElementById("loadedPhoto").files[0];
+  const formData = new FormData();
+  formData.append("photo", file);
+  formData.append("deliveryId", deliveryId);
+
+  await fetch("http://localhost:5000/loadDelivery",{
+    method:"POST",
+    body: formData
+  });
+
+  alert("Marked Loaded");
+}
+
+async function markDelivered(){
+
+  const file = document.getElementById("deliveredPhoto").files[0];
+  const formData = new FormData();
+  formData.append("photo", file);
+  formData.append("deliveryId", deliveryId);
+
+  await fetch("http://localhost:5000/deliverDelivery",{
+    method:"POST",
+    body: formData
+  });
+
+  alert("Marked Delivered");
+  window.location.href = "driver_interface.html";
+}
+
+loadInfo();
+
+</script>

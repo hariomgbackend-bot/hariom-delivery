@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Admin Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{
+  font-family: Arial, sans-serif;
+  background:#f4f6f9;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  margin:0;
+}
+
+.card{
+  background:white;
+  padding:30px;
+  border-radius:10px;
+  box-shadow:0 5px 20px rgba(0,0,0,0.1);
+  width:350px;
+}
+
+h2{
+  text-align:center;
+  margin-bottom:20px;
+}
+
+input{
+  width:100%;
+  padding:10px;
+  margin-bottom:12px;
+  border-radius:6px;
+  border:1px solid #ccc;
+}
+
+button{
+  width:100%;
+  padding:10px;
+  border:none;
+  border-radius:6px;
+  background:#2563eb;
+  color:white;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+button:hover{
+  background:#1d4ed8;
+}
+
+#otpSection{
+  display:none;
+}
+
+.message{
+  text-align:center;
+  margin-top:10px;
+  font-size:14px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h2>Admin Login</h2>
+
+<div id="emailSection">
+  <input type="email" id="email" placeholder="Enter admin email">
+  <button onclick="requestOTP()">Send OTP</button>
+</div>
+
+<div id="otpSection">
+  <input type="text" id="otp" placeholder="Enter OTP">
+  <button onclick="verifyOTP()">Verify OTP</button>
+</div>
+
+<div class="message" id="message"></div>
+
+</div>
+
+<script>
+
+async function requestOTP(){
+
+  const email = document.getElementById("email").value;
+
+  if(!email){
+    alert("Enter email");
+    return;
+  }
+
+  const res = await fetch("http://localhost:5000/admin/request-otp",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ email })
+  });
+
+  const data = await res.json();
+
+  if(!res.ok){
+    document.getElementById("message").innerText = data.error || "Error";
+    return;
+  }
+
+  document.getElementById("message").innerText = "OTP sent to email";
+  document.getElementById("otpSection").style.display="block";
+}
+
+async function verifyOTP(){
+
+  const email = document.getElementById("email").value;
+  const otp = document.getElementById("otp").value;
+
+  const res = await fetch("http://localhost:5000/admin/verify-otp",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ email, otp })
+  });
+
+  const data = await res.json();
+
+  if(!res.ok){
+    document.getElementById("message").innerText = data.error || "Invalid OTP";
+    return;
+  }
+
+  // SAVE TOKEN
+  localStorage.setItem("adminToken", data.token);
+
+  // Redirect
+  window.location.href = "admin.html";
+}
+
+</script>
+
+</body>
+</html>

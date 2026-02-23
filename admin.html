@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <div style="
+background:linear-gradient(135deg,#4f8cff,#3a6cf0);
+color:white;
+padding:20px;
+border-radius:14px;
+margin-bottom:20px;
+box-shadow:0 5px 12px rgba(0,0,0,0.15);
+">
+  <h2 style="margin:0;font-weight:600;">Hariom Electronics</h2>
+  <div style="opacity:0.9">Delivery Management Dashboard</div>
+</div>
+
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+
+  body{
+    font-family: 'Poppins', sans-serif;
+    background:#f5f7fb;
+    margin:15px;
+    color:#333;
+  }
+
+  h2{
+    text-align:center;
+    font-weight:600;
+    margin-bottom:15px;
+  }
+
+  h3{
+    font-weight:500;
+  }
+
+  button{
+    padding:9px 16px;
+    border:none;
+    border-radius:10px;
+    background:linear-gradient(135deg,#4f8cff,#3a6cf0);
+    color:white;
+    font-weight:500;
+    cursor:pointer;
+    box-shadow:0 3px 6px rgba(0,0,0,0.15);
+    margin:4px;
+  }
+  button.activeFilter{
+  background:linear-gradient(135deg,#ff7a18,#ff4e00);
+  box-shadow:0 4px 8px rgba(0,0,0,0.25);
+}
+
+  button:hover{
+    transform:translateY(-1px);
+  }
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    background:white;
+    border-radius:12px;
+    overflow:hidden;
+    box-shadow:0 3px 10px rgba(0,0,0,0.08);
+  }
+
+  th{
+    background:#3a6cf0;
+    color:white;
+    padding:12px;
+    font-weight:500;
+    text-align:left;
+  }
+
+  td{
+    padding:10px;
+    border-bottom:1px solid #eee;
+    font-size:14px;
+  }
+
+  tr:hover{
+    background:#f2f5ff;
+  }
+
+  #popup div{
+    background:white;
+    width:90%;
+    max-width:520px;
+    margin:80px auto;
+    padding:25px;
+    border-radius:16px;
+    box-shadow:0 8px 25px rgba(0,0,0,0.25);
+  }
+
+  input,select{
+    width:100%;
+    padding:8px;
+    margin:5px 0 12px 0;
+    border-radius:8px;
+    border:1px solid #ddd;
+    font-family:'Poppins';
+  }
+
+  @media(max-width:768px){
+    table, thead, tbody, th, td, tr{
+      display:block;
+    }
+
+    thead{
+      display:none;
+    }
+
+    tr{
+      margin-bottom:12px;
+      border-radius:12px;
+      background:white;
+      padding:10px;
+      box-shadow:0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    td{
+      display:flex;
+      justify-content:space-between;
+      padding:6px 0;
+      border:none;
+    }
+  }
+
+  </style>
+</head>
+
+
+
+<body>
+
+
+<div style="margin-bottom:15px;">
+  <a href="drivers.html">
+    <button>Manage Drivers</button>
+  </a>
+</div>
+
+
+<!-- FILTERS -->
+<div>
+  <button onclick="setFilter('all')">All</button>
+  <button onclick="setFilter('today')">Today</button>
+  <button onclick="showDatePicker()">Date</button>
+    <input type="date" id="adminDate"
+       style="display:none;margin-left:8px;"
+       onchange="applyDateFilter()">
+  <button onclick="setFilter('pending')">Pending</button>
+  <button onclick="setFilter('loaded')">Loaded</button>
+  <button onclick="setFilter('delivered')">Delivered</button>
+  <button onclick="setFilter('urgent')">Urgent</button>
+</div>
+
+</div>
+
+<div id="summaryCards" style="
+  display:flex;
+  gap:15px;
+  flex-wrap:wrap;
+  margin:15px 0;
+"></div>
+
+<h3 id="attention"></h3>
+
+<table border="1" width="100%">
+  <thead>
+    <tr>
+      <th>Customer</th>
+      <th>Driver</th>
+      <th>Product</th>
+      <th>Status</th>
+      <th>Priority</th>
+      <th>ETA</th>
+      <th>Delay (mins)</th>
+      <th>Loaded Photo</th>
+      <th>Loaded Time</th>  
+      <th>Delivered Photo</th>
+      <th>Delivered Time</th>
+      <th>Location</th>
+      <th>View</th>
+    </tr>
+  </thead>
+  <tbody id="adminTable"></tbody>
+</table>
+<button onclick="downloadCSV()">Download CSV</button>
+
+<!-- POPUP -->
+<div id="popup" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);overflow:auto;">
+  <div style="background:white;width:90%;max-width:520px;margin:40px auto;padding:25px;border-radius:16px;max-height:85vh;overflow-y:auto;">
+
+    <div id="popupContent"></div>
+    <br>
+    <button onclick="popup.style.display='none'">Close</button>
+  </div>
+</div>
+
+<script>
+const BASE_URL = window.location.origin;
+const token = localStorage.getItem("adminToken");
+
+if(!token){
+  window.location.href = "login.html";
+}
+
+let selectedAdminDate = null;
+let currentFilter = "all";
+let currentDeliveryObj = null;
+let currentDisplayedData = [];
+
+
+function setFilter(f){
+
+  currentFilter = f;
+
+  // Hide date picker if not using date filter
+  if(f !== "date"){
+    document.getElementById("adminDate").style.display = "none";
+  }
+
+  highlightActiveButton(f);
+
+  loadAdmin();
+}
+
+function highlightActiveButton(filter){
+
+  const buttons = document.querySelectorAll("div button");
+
+  buttons.forEach(btn=>{
+    btn.classList.remove("activeFilter");
+  });
+
+  buttons.forEach(btn=>{
+    if(btn.innerText.toLowerCase() === filter){
+      btn.classList.add("activeFilter");
+    }
+  });
+}
+
+function showDatePicker(){
+  document.getElementById("adminDate").style.display = "inline-block";
+  highlightActiveButton("date");
+}
+
+function applyDateFilter(){
+  const input = document.getElementById("adminDate");
+  selectedAdminDate = input.value;
+  currentFilter = "date";
+  highlightActiveButton("date");
+  loadAdmin();
+}
+
+async function loadAdmin(){
+
+  const res = await fetch("${BASE_URL}/deliveries",{
+  headers:{
+    Authorization: "Bearer " + token
+  }
+  });
+  let data = await res.json();
+
+  const now = new Date();
+
+  if(currentFilter === "today"){
+    data = data.filter(d=>{
+      if(!d.created_timestamp) return false;
+      const created = new Date(d.created_timestamp.seconds*1000);
+      return created.toDateString() === now.toDateString();
+    });
+  }
+  else if(currentFilter === "date"){
+  if(!selectedAdminDate) return;
+
+  data = data.filter(d=>{
+    if(!d.created_timestamp) return false;
+
+    const created = new Date(d.created_timestamp.seconds*1000);
+    const selected = new Date(selectedAdminDate);
+
+    return created.toDateString() === selected.toDateString();
+  });
+    }
+  else if(currentFilter === "pending") data = data.filter(d=>d.status==="pending");
+  else if(currentFilter === "loaded") data = data.filter(d=>d.status==="loaded");
+  else if(currentFilter === "delivered") data = data.filter(d=>d.status==="delivered");
+  else if(currentFilter === "urgent") data = data.filter(d=>d.priority==="urgent");
+
+  currentDisplayedData = data;
+  updateSummaryCards(data);
+
+  const table = document.getElementById("adminTable");
+  table.innerHTML="";
+
+  let delayedCount = 0;
+  let urgentCount = 0;
+
+  data.forEach(d=>{
+
+    const row = document.createElement("tr");
+
+    let delayText = "";
+
+    let loaded = d.loaded_timestamp ? new Date(d.loaded_timestamp.seconds*1000) : null;
+    let delivered = d.delivered_timestamp ? new Date(d.delivered_timestamp.seconds*1000) : null;
+    let eta = d.estimated_delivery_time ? new Date(d.estimated_delivery_time) : null;
+
+    if(loaded && delivered){
+      const diff = Math.round((delivered - loaded)/60000);
+      delayText = diff + " min";
+    }
+    else if(loaded && !delivered){
+      const diff = Math.round((now - loaded)/60000);
+      delayText = diff + " min (running)";
+    }
+
+    if(d.status !== "delivered") row.style.backgroundColor = "#e0e0e0";
+
+    if(delivered && eta){
+      const diffMinutes = (delivered - eta) / 60000;
+      if(diffMinutes <= 10) row.style.backgroundColor = "#c8f7c5";
+      else if(diffMinutes <= 30) row.style.backgroundColor = "#fff3b0";
+      else row.style.backgroundColor = "#ffb3b3";
+    }
+
+    if(eta && now > eta && d.status !== "delivered") delayedCount++;
+    if(d.priority === "urgent" && d.status !== "delivered") urgentCount++;
+
+    const mapLink = d.delivered_location
+      ? `https://www.google.com/maps?q=${d.delivered_location.lat},${d.delivered_location.lng}`
+      : (d.loaded_location
+          ? `https://www.google.com/maps?q=${d.loaded_location.lat},${d.loaded_location.lng}`
+          : "");
+
+    row.innerHTML = `
+      <td>${d.customer_name}</td>
+      <td>${d.assigned_driver_name || ""}</td>
+      <td>${d.product_name}</td>
+      <td>${d.status}</td>
+      <td>${d.priority || "normal"}</td>
+      <td>${d.estimated_delivery_time || ""}</td>
+      <td>${delayText}</td>
+
+      <td style="text-align:center">
+        ${d.photo_loaded_url? `<button onclick="viewImage('${d.photo_loaded_url}')">View</button>`: ""}
+      </td>
+      <td>${loaded ? loaded.toLocaleString() : ""}</td>
+
+      <td style="text-align:center">
+        ${d.photo_delivered_url? `<button onclick="viewImage('${d.photo_delivered_url}')">View</button>`: ""}
+      </td>
+
+      <td>${delivered ? delivered.toLocaleString() : ""}</td>
+
+      <td>${mapLink ? `<a href="${mapLink}" target="_blank">Open Map</a>` : ""}</td>
+
+      <td><button onclick='viewDetails(${JSON.stringify(d)})'>View</button></td>
+    `;
+
+    table.appendChild(row);
+  });
+
+  //document.getElementById("attention").innerText =
+  //  `⚠ Delayed: ${delayedCount} | 🔥 Urgent Pending: ${urgentCount}`;
+}
+
+function updateSummaryCards(data){
+
+  let pending = 0;
+  let loaded = 0;
+  let delivered = 0;
+  let urgent = 0;
+  let overdue = 0;
+
+  data.forEach(d=>{
+
+    if(d.status === "pending") pending++;
+    if(d.status === "loaded") loaded++;
+    if(d.status === "delivered") delivered++;
+    if(d.priority === "urgent") urgent++;
+
+    if(d.status !== "delivered" && d.estimated_delivery_time){
+      const eta = new Date(d.estimated_delivery_time);
+      if(eta < new Date()){
+        overdue++;
+      }
+    }
+  });
+
+  const container = document.getElementById("summaryCards");
+
+  container.innerHTML = `
+    ${createCard("Pending", pending, "#facc15")}
+    ${createCard("Loaded", loaded, "#60a5fa")}
+    ${createCard("Delivered", delivered, "#34d399")}
+    ${createCard("Urgent", urgent, "#fb7185")}
+    ${createCard("Overdue", overdue, "#ef4444")}
+  `;
+}
+
+function createCard(title, value, color){
+  return `
+    <div style="
+      flex:1;
+      min-width:120px;
+      background:${color};
+      padding:12px;
+      border-radius:8px;
+      color:white;
+      font-weight:600;
+      text-align:center;
+    ">
+      <div style="font-size:14px;">${title}</div>
+      <div style="font-size:20px;margin-top:4px;">${value}</div>
+    </div>
+  `;
+}
+
+function downloadCSV(){
+
+  if(!currentDisplayedData.length){
+    alert("No data to export");
+    return;
+  }
+
+  let csv = "Delivery ID,Customer Name,Phone,Alternate Phone,Address,Product Name,Product,Make,Model,Serial Number,Invoice Number,Priority,Status,ETA,Driver ID,Driver Name,Driver Instructions,Freight Charged,Freight Amount,Created At,Loaded At,Delivered At,Loaded Location,Delivered Location,Loaded Photo URL,Delivered Photo URL\n";
+
+  currentDisplayedData.forEach(d=>{
+
+    const created = d.created_timestamp
+      ? new Date(d.created_timestamp.seconds*1000).toLocaleString()
+      : "";
+
+    const loaded = d.loaded_timestamp
+      ? new Date(d.loaded_timestamp.seconds*1000).toLocaleString()
+      : "";
+
+    const delivered = d.delivered_timestamp
+      ? new Date(d.delivered_timestamp.seconds*1000).toLocaleString()
+      : "";
+
+    const loadedLocation = d.loaded_location
+      ? `${d.loaded_location.lat}, ${d.loaded_location.lng}`
+      : "";
+
+    const deliveredLocation = d.delivered_location
+      ? `${d.delivered_location.lat}, ${d.delivered_location.lng}`
+      : "";
+
+    csv += `"${d.id || ""}",`;
+    csv += `"${d.customer_name || ""}",`;
+    csv += `"${d.phone || ""}",`;
+    csv += `"${d.alternate_phone || ""}",`;
+    csv += `"${d.address || ""}",`;
+    csv += `"${d.product_name || ""}",`;
+    csv += `"${d.product || ""}",`;
+    csv += `"${d.make || ""}",`;
+    csv += `"${d.model || ""}",`;
+    csv += `"${d.product_serial_number || ""}",`;
+    csv += `"${d.invoice_number || ""}",`;
+    csv += `"${d.priority || ""}",`;
+    csv += `"${d.status || ""}",`;
+    csv += `"${d.estimated_delivery_time || ""}",`;
+    csv += `"${d.assigned_driver_id || ""}",`;
+    csv += `"${d.assigned_driver_name || ""}",`;
+    csv += `"${d.driver_instructions || ""}",`;
+    csv += `"${d.freight_charged ? "Yes" : "No"}",`;
+    csv += `"${d.freight_amount || ""}",`;
+    csv += `"${created}",`;
+    csv += `"${loaded}",`;
+    csv += `"${delivered}",`;
+    csv += `"${loadedLocation}",`;
+    csv += `"${deliveredLocation}",`;
+    csv += `"${d.photo_loaded_url || ""}",`;
+    csv += `"${d.photo_delivered_url || ""}"\n`;
+
+  });
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "deliveries_full_export.csv";
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+function viewDetails(d){
+
+  currentDeliveryObj = d;
+
+  popupContent.innerHTML = `
+<h3>Delivery Full Details</h3>
+<hr>
+
+<b>Delivery ID:</b> ${d.id || ""}<br><br>
+
+<b>Customer Name:</b> ${d.customer_name || ""}<br>
+<b>Phone:</b> ${d.phone || ""}<br>
+<b>Alternate Phone:</b> ${d.alternate_phone || ""}<br>
+<b>Address:</b> ${d.address || ""}<br><br>
+
+<b>Product Name:</b> ${d.product_name || ""}<br>
+<b>Serial Number:</b> ${d.product_serial_number || ""}<br>
+<b>Invoice Number:</b> ${d.invoice_number || ""}<br><br>
+
+<b>Priority:</b> ${d.priority || ""}<br>
+<b>Status:</b> ${d.status || ""}<br>
+<b>Estimated Delivery Time:</b> ${d.estimated_delivery_time || ""}<br><br>
+
+<b>Assigned Driver ID:</b> ${d.assigned_driver_id || ""}<br>
+<b>Assigned Driver Name:</b> ${d.assigned_driver_name || ""}<br><br>
+
+<b>Driver Instructions:</b> ${d.driver_instructions || ""}<br><br>
+
+<b>Freight Charged:</b> ${d.freight_charged ? "Yes" : "No"}<br>
+<b>Freight Amount:</b> ${d.freight_amount || ""}<br><br>
+
+<b>Created At:</b> ${
+  d.created_timestamp
+    ? new Date(d.created_timestamp.seconds*1000).toLocaleString()
+    : ""
+}<br>
+
+<b>Loaded At:</b> ${
+  d.loaded_timestamp
+    ? new Date(d.loaded_timestamp.seconds*1000).toLocaleString()
+    : ""
+}<br>
+
+<b>Delivered At:</b> ${
+  d.delivered_timestamp
+    ? new Date(d.delivered_timestamp.seconds*1000).toLocaleString()
+    : ""
+}<br><br>
+
+<b>Loaded Location:</b> ${
+  d.loaded_location
+    ? d.loaded_location.lat + ", " + d.loaded_location.lng
+    : ""
+}<br>
+
+<b>Delivered Location:</b> ${
+  d.delivered_location
+    ? d.delivered_location.lat + ", " + d.delivered_location.lng
+    : ""
+}<br><br>
+
+<b>Loaded Photo:</b><br>
+${d.photo_loaded_url ? `<a href="${d.photo_loaded_url}" target="_blank">View Loaded Photo</a>` : "None"}<br><br>
+
+<b>Delivered Photo:</b><br>
+${d.photo_delivered_url ? `<a href="${d.photo_delivered_url}" target="_blank">View Delivered Photo</a>` : "None"}<br><br>
+
+<button onclick="enableEdit()">Edit</button>
+<button onclick="deleteDelivery('${d.id}')">Delete</button>
+`;
+
+  popup.style.display="block";
+}
+
+function viewImage(url){
+  document.getElementById("popupImg").src = url;
+  document.getElementById("downloadLink").href = url;
+  document.getElementById("imgPopup").style.display = "block";
+}
+
+
+function enableEdit(){
+
+  const d = currentDeliveryObj;
+
+  popupContent.innerHTML = `
+    <h3>Edit Delivery</h3>
+
+    Customer:<br>
+    <input id="edit_customer" value="${d.customer_name}"><br>
+
+    Phone:<br>
+    <input id="edit_phone" value="${d.phone}"><br>
+
+    Address:<br>
+    <input id="edit_address" value="${d.address}"><br>
+
+    Product:<br>
+    <input id="edit_product" value="${d.product_name}"><br>
+
+    Driver:<br>
+    <input id="edit_driver" value="${d.assigned_driver_name || ""}"><br>
+
+    Priority:
+    <select id="edit_priority">
+      <option ${d.priority=="normal"?"selected":""}>normal</option>
+      <option ${d.priority=="urgent"?"selected":""}>urgent</option>
+    </select><br>
+
+    ETA:<br>
+    <input id="edit_eta" value="${d.estimated_delivery_time || ""}"><br><br>
+
+    <button onclick="updateDelivery('${d.id}')">Update</button>
+  `;
+}
+
+async function updateDelivery(id){
+
+  if(!confirm("Update this delivery?")) return;
+
+  await fetch(`${BASE_URL}/delivery/${id}`,{
+  method:"PUT",
+  headers:{
+    "Content-Type":"application/json",
+    Authorization: "Bearer " + token
+  },
+    body: JSON.stringify({
+      customer_name: edit_customer.value,
+      phone: edit_phone.value,
+      address: edit_address.value,
+      product_name: edit_product.value,
+      assigned_driver_name: edit_driver.value,
+      priority: edit_priority.value,
+      estimated_delivery_time: edit_eta.value
+    })
+  });
+
+  popup.style.display="none";
+  loadAdmin();
+}
+
+async function deleteDelivery(id){
+
+  if(!confirm("Delete this delivery permanently?")) return;
+
+  await fetch(`${BASE_URL}/delivery/${id}`,{
+  method:"DELETE",
+  headers:{
+    Authorization: "Bearer " + token
+  }
+    });
+
+  popup.style.display="none";
+  loadAdmin();
+}
+
+setInterval(loadAdmin, 30000);
+loadAdmin();
+
+</script>
+
+<!-- IMAGE POPUP -->
+<div id="imgPopup" style="
+display:none;
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.7);
+overflow:auto;
+">
+
+  <div style="
+  background:white;
+  width:90%;
+  max-width:600px;
+  margin:50px auto;
+  padding:20px;
+  border-radius:12px;
+  text-align:center;
+  ">
+
+    <img id="popupImg" style="max-width:100%;border-radius:10px;"><br><br>
+
+    <a id="downloadLink" download>
+      <button>Download</button>
+    </a>
+
+    <button onclick="imgPopup.style.display='none'">Close</button>
+
+  </div>
+</div>
+
+
+
+</body>
+</html>

@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Hariom Traders - Accountant</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+
+body{
+  font-family: 'Poppins', sans-serif;
+  margin:0;
+  background:#f3f6fb;
+}
+
+.header{
+  background:linear-gradient(135deg,#1e3c72,#2a5298);
+  color:white;
+  padding:20px;
+  text-align:center;
+  font-size:22px;
+  font-weight:600;
+  box-shadow:0 4px 12px rgba(0,0,0,0.2);
+}
+
+.container{
+  padding:20px;
+  max-width:1200px;
+  margin:auto;
+}
+
+.card{
+  background:white;
+  border-radius:14px;
+  padding:20px;
+  margin-bottom:20px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.08);
+}
+
+button{
+  background:#2a5298;
+  color:white;
+  border:none;
+  padding:10px 18px;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:500;
+  transition:0.2s;
+}
+
+button.activeFilter{
+  background:linear-gradient(135deg,#ff7a18,#ff4e00);
+  box-shadow:0 4px 8px rgba(0,0,0,0.25);
+}
+
+button:hover{ opacity:0.9; }
+
+input, select{
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #ddd;
+  margin-bottom:12px;
+  font-family:Poppins;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:14px;
+}
+
+th{
+  background:#2a5298;
+  color:white;
+  padding:12px;
+}
+
+td{
+  padding:12px;
+  text-align:center;
+  border-bottom:1px solid #eee;
+}
+
+.popup-overlay{
+  display:none;
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.5);
+}
+
+.popup-card{
+  background:white;
+  width:95%;
+  max-width:500px;
+  margin:40px auto;
+  padding:25px;
+  border-radius:16px;
+  max-height:85vh;
+  overflow-y:auto;
+}
+
+.section-title{
+  font-weight:600;
+  margin-top:15px;
+  margin-bottom:5px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="header">Accountant Panel</div>
+
+<div class="container">
+
+<div class="card">
+<button onclick="openPopup()">+ Create Delivery</button>
+</div>
+
+<div class="card">
+<h3>Today's Deliveries</h3>
+<div style="margin-bottom:10px;">
+  <button onclick="setFilter('all')">All</button>
+  <button onclick="setFilter('pending')">Pending</button>
+  <button onclick="setFilter('loaded')">Loaded</button>
+  <button onclick="setFilter('delivered')">Delivered</button>
+  <button onclick="setFilter('urgent')">Urgent</button>
+  <button onclick="setFilter('today')">Today</button>
+  <button onclick="setFilter('yesterday')">Yesterday</button>
+  <button onclick="showCustomDate()">Custom</button>
+
+  <input type="date"
+         id="customDate"
+         style="display:none;margin-left:8px;"
+         onchange="applyCustomDate()">
+</div>
+<input type="text"
+       id="searchInput"
+       placeholder="Search by name or phone..."
+       style="margin:10px 0;padding:8px;border-radius:8px;border:1px solid #ddd;width:250px;"
+       oninput="applySearch()">
+
+<table>
+<thead>
+<tr>
+<th>Customer</th>
+<th>Phone</th>
+<th>Product</th>
+<th>Driver</th>
+<th>Status</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody id="list"></tbody>
+</table>
+<div id="deliverySummary" style="margin-bottom:15px;font-weight:600;"></div>
+
+</div>
+
+</div>
+
+
+<!-- POPUP -->
+<div class="popup-overlay" id="popup">
+  <div class="popup-card">
+
+    <h3>Create Delivery</h3>
+    <div id="formMessage" style="margin-bottom:10px;font-weight:500;"></div>
+
+    <div class="section-title">Customer Name</div>
+    <input id="first_name" placeholder="First Name">
+    <input id="middle_name" placeholder="Middle Name (Optional)">
+    <input id="last_name" placeholder="Last Name">
+
+    <div class="section-title">Phone</div>
+    <input id="phone" placeholder="Phone" maxlength="10">
+    <input id="alt_phone" placeholder="Alternate Phone (Optional)" maxlength="10">
+
+
+    <div class="section-title">Address</div>
+    <input id="addr1" placeholder="Address Line 1">
+    <input id="addr2" placeholder="Address Line 2">
+    <input id="area" placeholder="Area / Landmark">
+    <input id="city" placeholder="City">
+    <input id="state" placeholder="State">
+    <input id="pin" placeholder="PIN Code">
+
+    <div class="section-title">Product Details</div>
+
+    <select id="product_select" onchange="handleAddNew(this,'product')"></select>
+    <input id="new_product" placeholder="New Product" style="display:none">
+    <button id="btn_product" type="button" onclick="saveNew('product')" style="display:none;">+ Add Product</button>
+
+    <div class="section-title">Make *</div>
+    <select id="make_select" onchange="handleAddNew(this,'make')"></select>
+    <input id="new_make" placeholder="New Make" style="display:none">
+    <button id="btn_make" type="button" onclick="saveNew('make')" style="display:none;">+ Add Make</button>
+
+    <div class="section-title">Model *</div>
+    <select id="model_select" onchange="handleAddNew(this,'model')"></select>
+    <input id="new_model" placeholder="New Model" style="display:none">
+    <button id="btn_model" type="button" onclick="saveNew('model')" style="display:none;">+ Add Model</button>
+
+    <input id="serial" placeholder="Serial Number">
+    <input id="invoice" placeholder="Invoice Number">
+
+    <div class="section-title">Priority</div>
+    <select id="priority">
+      <option value="normal">Normal</option>
+      <option value="urgent">Urgent</option>
+    </select>
+
+    <div class="section-title">Estimated Delivery Time</div>
+    <input type="datetime-local" id="estimated_time">
+
+    <div class="section-title">Assign Driver</div>
+    <select id="driver"></select>
+
+    <div style="margin-top:10px;">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:500;">
+      <input type="checkbox" id="has_instruction" style="width:auto;" onchange="toggleInstruction()">
+      Add Delivery Instruction
+      </label>
+    </div>
+
+<input id="instruction" placeholder="Enter Instruction"
+       style="display:none;">
+    <div style="margin-top:10px;">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:500;">
+      <div style="margin-top:10px;">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:500;">
+      <input type="checkbox" id="freight_charged" style="width:auto;" onchange="toggleFreight()">
+        Freight Charges Applied
+      </label>
+    </div>
+
+<input id="freight_amount" placeholder="Freight Amount" style="display:none;">
+
+      </label>
+    </div>
+
+
+    <button id="createBtn" onclick="createDelivery()">Create Delivery</button>
+    <button type="button" onclick="resetForm()" style="background:#dc3545;margin-top:10px;">Reset Form</button>
+    <button onclick="closePopup()" style="background:#6c757d;margin-top:10px;">Cancel</button>
+
+  </div>
+</div>
+
+<script>
+const BASE_URL = window.location.origin;
+let currentFilter = "all";
+let customSelectedDate = null;
+let searchQuery = "";
+
+function applySearch(){
+  searchQuery = document.getElementById("searchInput").value.toLowerCase();
+  loadDeliveries();
+}
+
+
+
+function setFilter(type){
+
+  currentFilter = type;
+
+  // Hide custom date picker if not custom
+  if(type !== "custom"){
+    document.getElementById("customDate").style.display = "none";
+  }
+
+  highlightActiveFilter(type);
+
+  loadDeliveries();
+}
+
+function highlightActiveFilter(filter){
+
+  const buttons = document.querySelectorAll("div button");
+
+  buttons.forEach(btn=>{
+    btn.classList.remove("activeFilter");
+  });
+
+  buttons.forEach(btn=>{
+    if(btn.innerText.toLowerCase() === filter){
+      btn.classList.add("activeFilter");
+    }
+  });
+}
+
+function showCustomDate(){
+  document.getElementById("customDate").style.display="inline-block";
+  highlightActiveFilter("custom");
+}
+
+function applyCustomDate(){
+  const input = document.getElementById("customDate");
+  customSelectedDate = input.value;
+
+  currentFilter = "custom";
+
+  loadDeliveries();
+}
+
+function openPopup(){
+  resetForm();        // ← RESET FIRST
+  popup.style.display="block";
+}
+function closePopup(){ popup.style.display="none"; }
+
+/* ---------- INDEPENDENT MASTER LIST LOGIC ---------- */
+
+async function loadDropdown(endpoint, selectId){
+  const res = await fetch(`${BASE_URL}/${endpoint}`);
+  const data = await res.json();
+
+  const select = document.getElementById(selectId);
+  select.innerHTML = "";
+
+  data.forEach(x=>{
+    const o = document.createElement("option");
+    o.value = x.name;
+    o.text = x.name;
+    select.appendChild(o);
+  });
+
+  const add = document.createElement("option");
+  add.value = "add_new";
+  add.text = "+ Add New";
+  select.appendChild(add);
+
+  select.onchange = ()=>{
+    if(select.value==="add_new"){
+      document.getElementById("new_"+selectId.split("_")[0]).style.display="block";
+    }
+  };
+}
+
+async function loadAllMasters(){
+  await loadDropdown("products","product_select");
+  await loadDropdown("makes","make_select");
+  await loadDropdown("models","model_select");
+}
+
+function handleAddNew(select, type){
+
+  const input = document.getElementById("new_"+type);
+  const button = document.getElementById("btn_"+type);
+
+  if(select.value === "add_new"){
+    input.style.display = "block";
+    button.style.display = "inline-block";
+  }else{
+    input.style.display = "none";
+    button.style.display = "none";
+  }
+}
+
+async function saveNew(type){
+
+  const input = document.getElementById("new_"+type);
+  const select = document.getElementById(type+"_select");
+
+  const value = input.value.trim();
+
+  if(!value){
+    alert("Enter value first");
+    return;
+  }
+
+  const res = await fetch(`${BASE_URL}/${type}s`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ name:value })
+  });
+
+  const result = await res.json();
+
+  if(result.exists){
+    alert("Already exists");
+    return;
+  }
+
+  // Insert at TOP
+  const option = document.createElement("option");
+  option.value = value;
+  option.text = value;
+
+  select.insertBefore(option, select.firstChild);
+
+  select.value = value;
+
+  input.value = "";
+  input.style.display = "none";
+  document.getElementById("btn_"+type).style.display = "none";
+
+}
+
+/*-----------Instrction----------------*/
+
+function toggleInstruction(){
+  const box = document.getElementById("has_instruction");
+  const input = document.getElementById("instruction");
+
+  if(box.checked){
+    input.style.display = "block";
+  }else{
+    input.style.display = "none";
+    input.value = "";
+  }
+}
+
+/*-----------Freight-------------------*/
+
+function toggleFreight(){
+  const box = document.getElementById("freight_charged");
+  const amount = document.getElementById("freight_amount");
+
+  if(box.checked){
+    amount.style.display = "block";
+  }else{
+    amount.style.display = "none";
+    amount.value = "";
+  }
+}
+
+/* ---------- LOAD DRIVERS ---------- */
+
+async function loadDrivers(){
+  const res=await fetch("${BASE_URL}/drivers");
+  const data=await res.json();
+  const d=document.getElementById("driver");
+  d.innerHTML="";
+  data.forEach(x=>{
+    const o=document.createElement("option");
+    o.value=x.id;
+    o.text=x.driver_name;
+    d.appendChild(o);
+  });
+}
+
+
+function capitalizeWords(str){
+  if(!str) return "";
+  return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/* ---------- PINCODE AUTO FILL ---------- */
+
+pin.addEventListener("input",()=>{
+  pin.value = pin.value.replace(/\D/g,'');
+});
+
+pin.addEventListener("blur", async ()=>{
+
+  if(pin.value.length !== 6) return;
+
+  try{
+
+    const res = await fetch(`https://api.postalpincode.in/pincode/${pin.value}`);
+    const data = await res.json();
+
+    if(data[0].Status === "Success"){
+
+      const postOffice = data[0].PostOffice[0];
+
+      city.value = postOffice.District;
+      state.value = postOffice.State;
+
+      city.style.background = "#f0fdf4";
+      state.style.background = "#f0fdf4";
+
+    }else{
+      city.value = "";
+      state.value = "";
+      alert("Invalid PIN Code");
+    }
+
+  }catch(err){
+    console.log("PIN API Error:", err);
+  }
+
+});
+
+
+
+
+
+
+/* ---------- CREATE DELIVERY ---------- */
+
+async function createDelivery(){
+
+  const btn = document.getElementById("createBtn");
+  if(btn.disabled) return;   // stops double click
+  btn.disabled = true;
+  btn.innerText = "Creating...";
+
+  // -------- REQUIRED FIELD CHECK --------
+
+if(!first_name.value.trim()){
+  alert("First name is required");
+  btn.disabled = false;
+  btn.innerText = "Create Delivery";
+  return;
+}
+
+if(phone.value.trim().length !== 10){
+  alert("Phone must be 10 digits");
+  btn.disabled = false;
+  btn.innerText = "Create Delivery";
+  return;
+}
+
+if(!addr1.value.trim()){
+  alert("Address Line 1 is required");
+  btn.disabled = false;
+  btn.innerText = "Create Delivery";
+  return;
+}
+
+if(!driver.value){
+  alert("Please assign a driver");
+  btn.disabled = false;
+  btn.innerText = "Create Delivery";
+  return;
+}
+
+  const fullName=[
+    first_name.value,
+    middle_name.value,
+    last_name.value
+  ].filter(x=>x).join(" ");
+
+  const fullAddress=[
+    addr1.value,
+    addr2.value,
+    area.value,
+    city.value,
+    state.value+" - "+pin.value
+  ].filter(x=>x).join(", ");
+
+
+
+async function resolveValue(type){
+
+  const select = document.getElementById(type+"_select");
+  const input = document.getElementById("new_"+type);
+
+  if(select.value === "add_new"){
+
+    const newValue = input.value.trim();
+
+    if(!newValue){
+      alert("Please enter " + type + " name.");
+      throw new Error("Missing " + type);
+    }
+
+    // Save automatically to master collection
+    await fetch(`${BASE_URL}/${type}s`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ name:newValue })
+    });
+
+    return newValue;
+  }
+
+  return select.value;
+}
+
+let productVal, makeVal, modelVal;
+
+try{
+  productVal = await resolveValue("product");
+  makeVal = await resolveValue("make");
+  modelVal = await resolveValue("model");
+}catch{
+  return;
+}  
+
+
+const finalProduct = [productVal, makeVal, modelVal]
+  .filter(x=>x)
+  .join(" ");
+
+const driverSel=document.getElementById("driver");
+
+const response = await fetch("${BASE_URL}/createDelivery",{
+  method:"POST",
+  headers:{"Content-Type":"application/json"},
+  body: JSON.stringify({
+    customer_name: capitalizeWords(fullName),
+    phone: phone.value,
+    alternate_phone: alt_phone.value || "",
+    address: capitalizeWords(fullAddress),
+    product_name: capitalizeWords(finalProduct),
+    product_serial_number: serial.value,
+    invoice_number: invoice.value,
+    priority: priority.value,
+    estimated_delivery_time: estimated_time.value,
+    assigned_driver_id: driverSel.value,
+    assigned_driver_name: driverSel.options[driverSel.selectedIndex].text,
+    driver_instructions: has_instruction.checked
+      ? instruction.value.trim()
+      : "none",
+    freight_charged: freight_charged.checked,
+    freight_amount: freight_charged.checked ? freight_amount.value : ""
+  })
+});
+
+if(!response.ok){
+  alert("Something went wrong. Delivery not created.");
+  btn.disabled = false;
+  btn.innerText = "Create Delivery";
+  return;
+}
+  closePopup();
+  loadDeliveries();
+  resetForm();
+  localStorage.removeItem("deliveryDraft");
+
+  document.getElementById("formMessage").innerHTML =
+  "<span style='color:green;'>✔ Delivery Created Successfully</span>";
+  btn.innerText = "Created ✔";
+
+  setTimeout(()=>{
+  btn.disabled = false;
+  btn.innerText = "Create Delivery";
+  },1000);
+}
+
+
+/*------------RESET FORM-----------------*/
+
+function resetForm(){
+
+  // Clear all text inputs
+  document.querySelectorAll(".popup-card input").forEach(i=>{
+    i.value="";
+    i.classList.remove("error");
+  });
+
+  // Reset selects
+  document.querySelectorAll(".popup-card select").forEach(s=>{
+    s.selectedIndex = 0;
+  });
+
+  // Hide new fields + buttons
+  ["product","make","model"].forEach(type=>{
+    const input = document.getElementById("new_"+type);
+    const btn = document.getElementById("btn_"+type);
+
+    if(input) input.style.display="none";
+    if(btn) btn.style.display="none";
+  });
+
+  has_instruction.checked = false;
+  instruction.style.display = "none";
+  instruction.value = "";
+
+  // Hide freight amount
+  freight_charged.checked = false;
+  freight_amount.style.display="none";
+  freight_amount.value="";
+
+  // Remove any city highlight from PIN autofill
+  city.style.background="";
+  state.style.background="";
+  document.getElementById("formMessage").innerHTML = "";
+
+}
+
+let currentAccountantData = [];
+/* ---------- LOAD DELIVERIES ---------- */
+
+async function loadDeliveries(){
+
+  const res = await fetch("${BASE_URL}/deliveries");
+  const data = await res.json();
+
+  const today = new Date();
+  const todayString = today.toDateString();
+
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  const yesterdayString = yesterday.toDateString();
+
+  let finalData = [];
+
+  // -------------------------
+  // HISTORICAL MODES FIRST
+  // -------------------------
+
+  if(currentFilter === "custom" && customSelectedDate){
+
+    const selected = new Date(customSelectedDate);
+    const selectedString = selected.toDateString();
+
+    finalData = data.filter(d=>{
+      if(!d.created_timestamp) return false;
+      const created = new Date(d.created_timestamp.seconds * 1000);
+      return created.toDateString() === selectedString;
+    });
+
+  }
+  else if(currentFilter === "yesterday"){
+
+    finalData = data.filter(d=>{
+      if(!d.created_timestamp) return false;
+      const created = new Date(d.created_timestamp.seconds * 1000);
+      return created.toDateString() === yesterdayString;
+    });
+
+  }
+  else{
+
+    // -------------------------
+    // OPERATIONAL MODE
+    // -------------------------
+
+    let pendingArr = [];
+    let loadedArr = [];
+    let deliveredTodayArr = [];
+
+    data.forEach(d=>{
+
+      const deliveredDate = d.delivered_timestamp
+        ? new Date(d.delivered_timestamp.seconds * 1000)
+        : null;
+
+      if(d.status === "pending"){
+        pendingArr.push(d);
+      }
+      else if(d.status === "loaded"){
+        loadedArr.push(d);
+      }
+      else if(d.status === "delivered"){
+        if(deliveredDate && deliveredDate.toDateString() === todayString){
+          deliveredTodayArr.push(d);
+        }
+      }
+
+    });
+
+    // Sort pending newest first
+    pendingArr.sort((a,b)=>{
+      return b.created_timestamp.seconds - a.created_timestamp.seconds;
+    });
+
+    finalData = [
+      ...pendingArr,
+      ...loadedArr,
+      ...deliveredTodayArr
+    ];
+
+    // Apply operational sub-filters
+    if(currentFilter === "pending"){
+      finalData = pendingArr;
+    }
+    else if(currentFilter === "loaded"){
+      finalData = loadedArr;
+    }
+    else if(currentFilter === "delivered"){
+      finalData = deliveredTodayArr;
+    }
+    else if(currentFilter === "urgent"){
+      finalData = finalData.filter(d=>d.priority === "urgent");
+    }
+    else if(currentFilter === "today"){
+      finalData = finalData.filter(d=>{
+        if(!d.created_timestamp) return false;
+        const created = new Date(d.created_timestamp.seconds * 1000);
+        return created.toDateString() === todayString;
+      });
+    }
+
+  }
+
+  // -------------------------
+  // SEARCH (applies everywhere)
+  // -------------------------
+
+  if(searchQuery){
+    finalData = finalData.filter(d=>{
+      return (
+        (d.customer_name && d.customer_name.toLowerCase().includes(searchQuery)) ||
+        (d.phone && d.phone.includes(searchQuery))
+      );
+    });
+  }
+
+  currentAccountantData = finalData;
+
+  // -------------------------
+  // RENDER TABLE
+  // -------------------------
+
+  const list = document.getElementById("list");
+  const summary = document.getElementById("deliverySummary");
+
+  list.innerHTML = "";
+
+  let pending = 0;
+  let loaded = 0;
+  let delivered = 0;
+
+  finalData.forEach(d=>{
+
+    if(d.status === "pending") pending++;
+    if(d.status === "loaded") loaded++;
+    if(d.status === "delivered") delivered++;
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${d.customer_name}</td>
+      <td>${d.phone}</td>
+      <td>${d.product_name}</td>
+      <td>${d.assigned_driver_name}</td>
+      <td>${d.status.charAt(0).toUpperCase()+d.status.slice(1)}</td>
+      <td><button onclick="openViewPopup('${d.id}')">View</button></td>
+    `;
+    list.appendChild(tr);
+  });
+
+  summary.innerHTML = `
+    📦 Pending: ${pending} |
+    🚚 Loaded: ${loaded} |
+    ✅ Delivered: ${delivered}
+  `;
+}
+/*----------------Auto-Save---------------------*/
+
+function saveDraft(){
+  const draft = {
+    first_name: first_name.value,
+    phone: phone.value,
+    addr1: addr1.value
+  };
+  localStorage.setItem("deliveryDraft", JSON.stringify(draft));
+}
+
+function loadDraft(){
+  const draft = JSON.parse(localStorage.getItem("deliveryDraft"));
+  if(!draft) return;
+
+  first_name.value = draft.first_name || "";
+  phone.value = draft.phone || "";
+  addr1.value = draft.addr1 || "";
+}
+
+document.querySelectorAll("input").forEach(i=>{
+  i.addEventListener("input", saveDraft);
+});
+
+// -------- CLEAN PHONE INPUTS --------
+
+document.getElementById("phone").addEventListener("input", function(){
+  this.value = this.value.replace(/\D/g,'');
+});
+
+document.getElementById("alt_phone").addEventListener("input", function(){
+  this.value = this.value.replace(/\D/g,'');
+});
+
+function openViewPopup(id){
+
+  const delivery = currentAccountantData.find(d=>d.id === id);
+  if(!delivery) return;
+
+  const content = document.getElementById("viewContent");
+
+  content.innerHTML = `
+    <div class="section-title">Customer Details</div>
+    <p><b>Name:</b> ${delivery.customer_name}</p>
+    <p><b>Phone:</b> ${delivery.phone}</p>
+    <p><b>Alternate:</b> ${delivery.alternate_phone || "-"}</p>
+    <p><b>Address:</b> ${delivery.address}</p>
+
+    <div class="section-title">Product Details</div>
+    <p><b>Product:</b> ${delivery.product_name}</p>
+    <p><b>Serial:</b> ${delivery.product_serial_number || "-"}</p>
+    <p><b>Invoice:</b> ${delivery.invoice_number || "-"}</p>
+
+    <div class="section-title">Delivery Info</div>
+    <p><b>Status:</b> ${delivery.status}</p>
+    <p><b>Priority:</b> ${delivery.priority}</p>
+    <p><b>Driver:</b> ${delivery.assigned_driver_name}</p>
+    <p><b>Estimated Time:</b> ${delivery.estimated_delivery_time || "-"}</p>
+    <p><b>Instruction:</b> ${delivery.driver_instructions || "-"}</p>
+
+    <div class="section-title">Freight</div>
+    <p><b>Freight Applied:</b> ${delivery.freight_charged ? "Yes" : "No"}</p>
+    <p><b>Amount:</b> ${delivery.freight_amount || "-"}</p>
+
+    <div class="section-title">Execution Proof</div>
+    ${delivery.photo_loaded_url ? `
+<p><b>Loaded Photo:</b><br>
+<img src="${delivery.photo_loaded_url}" 
+style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;">
+</p>` : ""}
+
+${delivery.photo_delivered_url ? `
+<p><b>Delivered Photo:</b><br>
+<img src="${delivery.photo_delivered_url}" 
+style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;">
+</p>` : ""}
+
+    ${delivery.loaded_location ? `
+<p><b>Loaded Location:</b> 
+<a href="https://www.google.com/maps?q=${delivery.loaded_location.lat},${delivery.loaded_location.lng}" 
+target="_blank">View Map</a>
+</p>` : ""}
+
+${delivery.delivered_location ? `
+<p><b>Delivered Location:</b> 
+<a href="https://www.google.com/maps?q=${delivery.delivered_location.lat},${delivery.delivered_location.lng}" 
+target="_blank">View Map</a>
+</p>` : ""}
+  `;
+
+  document.getElementById("viewPopup").style.display="block";
+}
+
+function closeViewPopup(){
+  document.getElementById("viewPopup").style.display="none";
+}
+
+loadDraft();
+loadDrivers();
+loadDeliveries();
+loadAllMasters();
+
+
+</script>
+<div class="popup-overlay" id="viewPopup">
+  <div class="popup-card">
+    <h3>Delivery Details</h3>
+    <div id="viewContent"></div>
+    <button onclick="closeViewPopup()" style="margin-top:10px;background:#6c757d;">Close</button>
+  </div>
+</div>
+
+</body>
+</html>
