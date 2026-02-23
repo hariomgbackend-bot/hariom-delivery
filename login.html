@@ -85,6 +85,8 @@ button:hover{
 
 <script>
 
+const BASE_URL = window.location.origin;
+
 async function requestOTP(){
 
   const email = document.getElementById("email").value;
@@ -94,7 +96,7 @@ async function requestOTP(){
     return;
   }
 
-  const res = await fetch("http://localhost:5000/admin/request-otp",{
+  const res = await fetch("${BASE_URL}/admin/request-otp",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body: JSON.stringify({ email })
@@ -116,7 +118,7 @@ async function verifyOTP(){
   const email = document.getElementById("email").value;
   const otp = document.getElementById("otp").value;
 
-  const res = await fetch("http://localhost:5000/admin/verify-otp",{
+  const res = await fetch("${BASE_URL}/admin/verify-otp",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body: JSON.stringify({ email, otp })
