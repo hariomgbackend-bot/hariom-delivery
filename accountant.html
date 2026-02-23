@@ -608,12 +608,11 @@ const finalProduct = [productVal, makeVal, modelVal]
 const driverSel=document.getElementById("driver");
 
 const response = await fetch(`${BASE_URL}/createDelivery`,{
+  method:"POST",
   headers:{
     "Content-Type":"application/json",
     Authorization: "Bearer " + token
   },
-  method:"POST",
-  headers:{"Content-Type":"application/json"},
   body: JSON.stringify({
     customer_name: capitalizeWords(fullName),
     phone: phone.value,
