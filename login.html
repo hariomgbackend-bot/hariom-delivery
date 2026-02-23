@@ -51,9 +51,6 @@ button:hover{
   background:#1d4ed8;
 }
 
-#otpSection{
-  display:none;
-}
 
 .message{
   text-align:center;
@@ -69,15 +66,9 @@ button:hover{
 
 <h2>Admin Login</h2>
 
-<div id="emailSection">
-  <input type="email" id="email" placeholder="Enter admin email">
-  <button onclick="requestOTP()">Send OTP</button>
-</div>
-
-<div id="otpSection">
-  <input type="text" id="otp" placeholder="Enter OTP">
-  <button onclick="verifyOTP()">Verify OTP</button>
-</div>
+<input type="email" id="email" placeholder="Enter admin email">
+<input type="password" id="password" placeholder="Enter password">
+<button onclick="login()">Login</button>
 
 <div class="message" id="message"></div>
 
@@ -87,6 +78,35 @@ button:hover{
 
 const BASE_URL = window.location.origin;
 
+async function login(){
+
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  if(!email || !password){
+    alert("Enter email and password");
+    return;
+  }
+
+  const res = await fetch(`${BASE_URL}/admin/login`, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ email, password })
+  });
+
+  const data = await res.json();
+
+  if(!res.ok){
+    document.getElementById("message").innerText = data.error || "Login failed";
+    return;
+  }
+
+  localStorage.setItem("adminToken", data.token);
+
+  window.location.href = "admin.html";
+}
+
+/*
 async function requestOTP(){
 
   const email = document.getElementById("email").value;
@@ -137,6 +157,7 @@ async function verifyOTP(){
   // Redirect
   window.location.href = "admin.html";
 }
+*/
 
 </script>
 

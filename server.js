@@ -22,11 +22,11 @@ import {
 
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import nodemailer from "nodemailer";
+//import nodemailer from "nodemailer";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
-const OTP_EXPIRY_MINUTES = 10;
+//const OTP_EXPIRY_MINUTES = 10;
 const JWT_EXPIRY = "8h";
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -44,7 +44,7 @@ const PHONE_NUMBER_ID = "959241260610800";
 const FAST2SMS_API_KEY = "KEY";
 
 // ===== EMAIL SETUP =====
-
+/*
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 587,
@@ -53,9 +53,9 @@ const transporter = nodemailer.createTransport({
     user: ADMIN_EMAIL,
     pass: process.env.EMAIL_PASS
   }
-});
+});*/
 
-
+/*
 transporter.verify(function(error, success) {
   if (error) {
     console.log("Email setup error:", error);
@@ -63,7 +63,35 @@ transporter.verify(function(error, success) {
     console.log("Email server ready");
   }
 });
+*/
 
+// ===== SIMPLE ADMIN LOGIN =====
+
+app.post("/admin/login", async (req, res) => {
+
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password required" });
+  }
+
+  if (email !== process.env.ADMIN_EMAIL) {
+    return res.status(401).json({ error: "Invalid credentials" });
+  }
+
+  if (password !== process.env.ADMIN_PASSWORD) {
+    return res.status(401).json({ error: "Invalid credentials" });
+  }
+
+  const token = jwt.sign(
+    { role: "admin" },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRY }
+  );
+
+  res.json({ success: true, token });
+
+});
 
 /* -------- WHATSAPP FUNCTION -------- */
 
@@ -599,7 +627,7 @@ res.json(deliveries);
 });
 
 // ===== ADMIN OTP REQUEST =====
-
+/*
 app.post("/admin/request-otp", async (req, res) => {
 
   const { email } = req.body;
@@ -679,7 +707,7 @@ app.post("/admin/verify-otp", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
+*/
 // ===== AUTH MIDDLEWARE =====
 
 function authenticate(req, res, next) {
