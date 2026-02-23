@@ -46,12 +46,16 @@ const FAST2SMS_API_KEY = "KEY";
 // ===== EMAIL SETUP =====
 
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false, // must be false for port 587
   auth: {
     user: ADMIN_EMAIL,
     pass: process.env.EMAIL_PASS
   }
 });
+
+
 transporter.verify(function(error, success) {
   if (error) {
     console.log("Email setup error:", error);
