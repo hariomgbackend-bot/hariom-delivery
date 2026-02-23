@@ -193,7 +193,7 @@ async function addDriver(){
     return;
   }
 
-  await fetch("${BASE_URL}/addDriver", {
+  await fetch(`${BASE_URL}/addDriver`, {
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
@@ -218,7 +218,7 @@ async function addDriver(){
 
 async function loadDrivers(){
 
-  const res = await fetch("${BASE_URL}/drivers",{
+  const res = await fetch(`${BASE_URL}/drivers`,{
   headers:{
     Authorization: "Bearer " + token
     }
