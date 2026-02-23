@@ -259,7 +259,7 @@ function applyDateFilter(){
 
 async function loadAdmin(){
 
-  const res = await fetch("${BASE_URL}/deliveries",{
+  const res = await fetch(`${BASE_URL}/deliveries`,{
   headers:{
     Authorization: "Bearer " + token
   }

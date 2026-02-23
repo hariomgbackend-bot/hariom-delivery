@@ -256,6 +256,11 @@ td{
 
 <script>
 const BASE_URL = window.location.origin;
+const token = localStorage.getItem("adminToken");
+
+if (!token) {
+  window.location.href = "login.html";
+}
 let currentFilter = "all";
 let customSelectedDate = null;
 let searchQuery = "";
@@ -319,7 +324,11 @@ function closePopup(){ popup.style.display="none"; }
 /* ---------- INDEPENDENT MASTER LIST LOGIC ---------- */
 
 async function loadDropdown(endpoint, selectId){
-  const res = await fetch(`${BASE_URL}/${endpoint}`);
+  const res = await fetch(`${BASE_URL}/${endpoint}`, {
+  headers: {
+    Authorization: "Bearer " + token
+  }
+  });
   const data = await res.json();
 
   const select = document.getElementById(selectId);
@@ -435,7 +444,11 @@ function toggleFreight(){
 /* ---------- LOAD DRIVERS ---------- */
 
 async function loadDrivers(){
-  const res=await fetch(`${BASE_URL}/drivers`);
+  const res = await fetch(`${BASE_URL}/drivers`, {
+  headers: {
+    Authorization: "Bearer " + token
+  }
+  });
   const data=await res.json();
   const d=document.getElementById("driver");
   d.innerHTML="";
@@ -595,6 +608,10 @@ const finalProduct = [productVal, makeVal, modelVal]
 const driverSel=document.getElementById("driver");
 
 const response = await fetch(`${BASE_URL}/createDelivery`,{
+  headers:{
+    "Content-Type":"application/json",
+    Authorization: "Bearer " + token
+  },
   method:"POST",
   headers:{"Content-Type":"application/json"},
   body: JSON.stringify({
@@ -684,7 +701,11 @@ let currentAccountantData = [];
 
 async function loadDeliveries(){
 
-  const res = await fetch(`${BASE_URL}/deliveries`);
+  const res = await fetch(`${BASE_URL}/deliveries`, {
+  headers: {
+    Authorization: "Bearer " + token
+  }
+  });
   const data = await res.json();
 
   const today = new Date();
