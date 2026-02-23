@@ -203,7 +203,7 @@ let isLocked = false;
 
 /* LOAD DRIVERS */
 async function loadDrivers(){
-  const res = await fetch("${BASE_URL}/driver-list-public")
+  const res = await fetch(`${BASE_URL}/driver-list-public`)
   const data = await res.json();
 
   const sel = document.getElementById("driverSelect");
@@ -239,7 +239,7 @@ async function unlockDriver(){
   // get driver ID from dropdown (we fix next)
   const driverId = driverSelect.options[driverSelect.selectedIndex].dataset.id;
 
-  const res = await fetch("${BASE_URL}/driverDeliveries",{
+  const res = await fetch(`${BASE_URL}/driverDeliveries`,{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body: JSON.stringify({

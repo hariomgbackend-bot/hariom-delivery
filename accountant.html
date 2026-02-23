@@ -435,7 +435,7 @@ function toggleFreight(){
 /* ---------- LOAD DRIVERS ---------- */
 
 async function loadDrivers(){
-  const res=await fetch("${BASE_URL}/drivers");
+  const res=await fetch(`${BASE_URL}/drivers`);
   const data=await res.json();
   const d=document.getElementById("driver");
   d.innerHTML="";
@@ -594,7 +594,7 @@ const finalProduct = [productVal, makeVal, modelVal]
 
 const driverSel=document.getElementById("driver");
 
-const response = await fetch("${BASE_URL}/createDelivery",{
+const response = await fetch(`${BASE_URL}/createDelivery`,{
   method:"POST",
   headers:{"Content-Type":"application/json"},
   body: JSON.stringify({
@@ -684,7 +684,7 @@ let currentAccountantData = [];
 
 async function loadDeliveries(){
 
-  const res = await fetch("${BASE_URL}/deliveries");
+  const res = await fetch(`${BASE_URL}/deliveries`);
   const data = await res.json();
 
   const today = new Date();
