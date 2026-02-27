@@ -16,7 +16,8 @@ body{
 }
 
 .header{
-  background:linear-gradient(135deg,#1e3c72,#2a5298);
+  background:linear-gradient(135deg,#0f172a,#2563eb);
+  letter-spacing:0.5px;
   color:white;
   padding:20px;
   text-align:center;
@@ -40,11 +41,11 @@ body{
 }
 
 button{
-  background:#2a5298;
+  background:linear-gradient(135deg,#2563eb,#1d4ed8);
   color:white;
   border:none;
   padding:10px 18px;
-  border-radius:8px;
+  border-radius:10px;
   cursor:pointer;
   font-weight:500;
   transition:0.2s;
@@ -55,7 +56,10 @@ button.activeFilter{
   box-shadow:0 4px 8px rgba(0,0,0,0.25);
 }
 
-button:hover{ opacity:0.9; }
+button:hover{
+  transform:translateY(-1px);
+  box-shadow:0 6px 14px rgba(0,0,0,0.15);
+}
 
 input, select{
   width:100%;
@@ -73,15 +77,18 @@ table{
 }
 
 th{
-  background:#2a5298;
+  background:#1e293b;
   color:white;
-  padding:12px;
+  font-weight:500;
 }
 
 td{
   padding:12px;
   text-align:center;
   border-bottom:1px solid #eee;
+}
+tr:nth-child(even){
+  background:#f8fafc;
 }
 
 .popup-overlay{
@@ -154,6 +161,7 @@ td{
 <th>Phone</th>
 <th>Product</th>
 <th>Driver</th>
+<th>ETA</th>
 <th>Status</th>
 <th>Action</th>
 </tr>
@@ -314,6 +322,25 @@ function applyCustomDate(){
 
   loadDeliveries();
 }
+
+// Prevent past date selection
+document.addEventListener("DOMContentLoaded", () => {
+
+  const etaInput = document.getElementById("estimated_time");
+  if(!etaInput) return;
+
+  function setMinTime(){
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    etaInput.min = now.toISOString().slice(0,16);
+  }
+
+  setMinTime();
+
+  // also update min every minute (optional but professional)
+  setInterval(setMinTime, 60000);
+
+});
 
 function openPopup(){
   resetForm();        // ← RESET FIRST
@@ -560,6 +587,18 @@ if(!driver.value){
     city.value,
     state.value+" - "+pin.value
   ].filter(x=>x).join(", ");
+
+  if(estimated_time.value){
+  const selected = new Date(estimated_time.value);
+  const now = new Date();
+
+  if(selected < now){
+    alert("Estimated delivery time cannot be in past");
+    btn.disabled = false;
+    btn.innerText = "Create Delivery";
+    return;
+  }
+}
 
 
 
@@ -845,7 +884,30 @@ async function loadDeliveries(){
       <td>${d.phone}</td>
       <td>${d.product_name}</td>
       <td>${d.assigned_driver_name}</td>
-      <td>${d.status.charAt(0).toUpperCase()+d.status.slice(1)}</td>
+      <td style="font-weight:500;">
+    ${formatDate(d.estimated_delivery_time)}
+  </td>
+      <td>
+<span style="
+padding:6px 14px;
+border-radius:20px;
+font-size:12px;
+font-weight:600;
+text-transform:capitalize;
+background:${
+  d.status === "pending" ? "#fff4e5" :
+  d.status === "loaded" ? "#e0f2fe" :
+  "#dcfce7"
+};
+color:${
+  d.status === "pending" ? "#b45309" :
+  d.status === "loaded" ? "#0369a1" :
+  "#166534"
+};
+">
+${d.status}
+</span>
+</td>
       <td><button onclick="openViewPopup('${d.id}')">View</button></td>
     `;
     list.appendChild(tr);
@@ -875,6 +937,21 @@ function loadDraft(){
   first_name.value = draft.first_name || "";
   phone.value = draft.phone || "";
   addr1.value = draft.addr1 || "";
+}
+
+function formatDate(dateString){
+  if(!dateString) return "-";
+
+  const d = new Date(dateString);
+
+  const day = String(d.getDate()).padStart(2,"0");
+  const month = String(d.getMonth()+1).padStart(2,"0");
+  const year = d.getFullYear();
+
+  const hours = String(d.getHours()).padStart(2,"0");
+  const minutes = String(d.getMinutes()).padStart(2,"0");
+
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
 }
 
 document.querySelectorAll("input").forEach(i=>{
@@ -914,7 +991,7 @@ function openViewPopup(id){
     <p><b>Status:</b> ${delivery.status}</p>
     <p><b>Priority:</b> ${delivery.priority}</p>
     <p><b>Driver:</b> ${delivery.assigned_driver_name}</p>
-    <p><b>Estimated Time:</b> ${delivery.estimated_delivery_time || "-"}</p>
+    <p><b>Estimated Time:</b> ${formatDate(delivery.estimated_delivery_time)}</p>
     <p><b>Instruction:</b> ${delivery.driver_instructions || "-"}</p>
 
     <div class="section-title">Freight</div>
@@ -948,10 +1025,119 @@ target="_blank">View Map</a>
   `;
 
   document.getElementById("viewPopup").style.display="block";
+// If status is pending, show Edit button
+if(delivery.status && delivery.status.toLowerCase() === "pending"){
+  content.innerHTML += `
+    <button onclick="editDelivery('${delivery.id}')"
+      style="margin-top:10px;background:#2563eb;">
+      Edit
+    </button>
+  `;
+}
 }
 
 function closeViewPopup(){
   document.getElementById("viewPopup").style.display="none";
+}
+
+async function editDelivery(id){
+
+  const delivery = currentAccountantData.find(d=>d.id === id);
+  if(!delivery) return;
+
+  const content = document.getElementById("viewContent");
+
+  // Fetch drivers
+  const res = await fetch(`${BASE_URL}/drivers`,{
+    headers:{ Authorization:"Bearer " + token }
+  });
+  const drivers = await res.json();
+
+  content.innerHTML = `
+  <h3 style="margin-bottom:15px;">Edit Delivery</h3>
+
+  <div class="section-title">Customer Name</div>
+  <input id="edit_name" value="${delivery.customer_name}">
+
+  <div class="section-title">Phone</div>
+  <input id="edit_phone" value="${delivery.phone}">
+
+  <div class="section-title">Alternate Phone</div>
+  <input id="edit_alt" value="${delivery.alternate_phone || ""}">
+
+  <div class="section-title">Address</div>
+  <textarea id="edit_address" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;">
+${delivery.address}</textarea>
+
+  <div class="section-title">Product</div>
+  <input id="edit_product" value="${delivery.product_name}">
+
+  <div class="section-title">Serial Number</div>
+  <input id="edit_serial" value="${delivery.product_serial_number || ""}">
+
+  <div class="section-title">Assign Driver</div>
+  <select id="edit_driver"></select>
+
+  <div style="margin-top:20px;display:flex;gap:10px;">
+    <button onclick="saveDelivery('${id}')" 
+      style="background:#16a34a;">
+      Save Changes
+    </button>
+
+    <button onclick="closeViewPopup()" 
+      style="background:#6b7280;">
+      Cancel
+    </button>
+  </div>
+`;
+
+  const driverSelect = document.getElementById("edit_driver");
+
+  drivers.forEach(driver=>{
+    const option = document.createElement("option");
+    option.value = driver.id;
+    option.text = driver.driver_name;
+
+    if(driver.id === delivery.assigned_driver_id){
+      option.selected = true;
+    }
+
+    driverSelect.appendChild(option);
+  });
+}
+
+async function saveDelivery(id){
+
+  const driverSelect = document.getElementById("edit_driver");
+
+  const updated = {
+    customer_name: document.getElementById("edit_name").value,
+    phone: document.getElementById("edit_phone").value,
+    alternate_phone: document.getElementById("edit_alt").value,
+    address: document.getElementById("edit_address").value,
+    product_name: document.getElementById("edit_product").value,
+    product_serial_number: document.getElementById("edit_serial").value,
+    assigned_driver_id: driverSelect.value,
+    assigned_driver_name: driverSelect.options[driverSelect.selectedIndex].text
+  };
+
+  const res = await fetch(`${BASE_URL}/delivery/${id}`,{
+    method:"PUT",
+    headers:{
+      "Content-Type":"application/json",
+      Authorization:"Bearer " + token
+    },
+    body: JSON.stringify(updated)
+  });
+
+  if(!res.ok){
+  const err = await res.json();
+  alert(err.error || "Edit failed");
+  return;
+  }
+
+  closeViewPopup();
+  loadDeliveries();
 }
 
 loadDraft();

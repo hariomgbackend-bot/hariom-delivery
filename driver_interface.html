@@ -200,6 +200,7 @@ let currentDriverId = null;
 let currentDriverPin = null;
 let pinAttempts = 0;
 let isLocked = false;
+let currentDeliveryData = null;
 
 /* LOAD DRIVERS */
 async function loadDrivers(){
@@ -324,6 +325,7 @@ async function openDelivery(id){
 
   const res = await fetch(`${BASE_URL}/delivery/${id}`);
   const d = await res.json();
+  currentDeliveryData = d;
 
   currentDeliveryId=id;
   currentStatus=(d.status||"").toLowerCase();
@@ -331,19 +333,35 @@ async function openDelivery(id){
   let uploadField="";
 
   if(currentStatus==="pending"){
-    uploadField=`Upload Loaded Photo:<br><input type="file"
+
+  uploadField = "";
+
+  // If serial exists → show it only
+  if(d.product_serial_number){
+    uploadField += `
+      <div style="margin-bottom:10px;">
+        <b>Serial Number:</b> ${d.product_serial_number}
+      </div>
+    `;
+  }
+  // If serial missing → show input
+  else{
+    uploadField += `
+      <input id="serialInput"
+      placeholder="Enter Serial Number"
+      style="margin-bottom:10px;padding:8px;width:100%;">
+    `;
+  }
+
+  uploadField += `
+    Upload Loaded Photo:<br>
+    <input type="file"
        id="photo"
        accept="image/png,image/jpeg,image/jpg,image/webp"
        capture="environment"
-       style="margin-top:6px;padding:6px;border:1px solid #ddd;border-radius:6px;width:100%;"><br><br>`;
-  }
-  else if(currentStatus==="loaded"){
-    uploadField=`Upload Delivered Photo:<br><input type="file"
-       id="photo"
-       accept="image/png,image/jpeg,image/jpg,image/webp"
-       capture="environment"
-       style="margin-top:6px;padding:6px;border:1px solid #ddd;border-radius:6px;width:100%;"><br><br>`;
-  }
+       style="margin-top:6px;padding:6px;border:1px solid #ddd;border-radius:6px;width:100%;"><br><br>
+  `;
+}
 
   popupContent.innerHTML=`
 
@@ -618,6 +636,19 @@ formData.append("photo", compressedBlob, "upload.jpg");
     formData.append("lng",pos.coords.longitude);
     formData.append("driver_id", currentDriverId);
     formData.append("pin", currentDriverPin);
+
+    const serialInput = document.getElementById("serialInput");
+
+if(currentStatus === "pending" && !currentDeliveryData.product_serial_number){
+
+  if(!serialInput || !serialInput.value.trim()){
+    alert("Serial number required");
+    return;
+  }
+
+  formData.append("serial", serialInput.value.trim());
+}
+
 
     if(currentStatus==="pending"){
       await fetch(`${BASE_URL}/markLoaded/${currentDeliveryId}`,{method:"POST",body:formData});

@@ -23,6 +23,8 @@ import {
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 //import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
@@ -247,6 +249,15 @@ app.post("/createDelivery", authenticate, authorize(["admin", "accountant"]), as
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+
+  if(req.body.estimated_delivery_time){
+  const eta = new Date(req.body.estimated_delivery_time);
+  const now = new Date();
+
+  if(eta < now){
+    return res.status(400).json({error:"ETA cannot be in past"});
+  }
+}
 });
 
 /* -------- GET DELIVERIES -------- */
@@ -275,6 +286,59 @@ app.get("/deliveries", authenticate, authorize(["admin", "accountant"]), async (
   }
 });
 
+/*------------UPDATE DELIVERY-------------*/
+/*
+app.put("/delivery/:id", verifyToken, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const docRef = db.collection("deliveries").doc(id);
+    const snap = await docRef.get();
+
+    if (!snap.exists) {
+      return res.status(404).json({ error: "Delivery not found" });
+    }
+
+    const delivery = snap.data();
+    const updates = req.body;
+
+    // 🔒 If delivered → fully locked
+    if (delivery.status === "delivered") {
+      return res.status(400).json({
+        error: "Delivered deliveries cannot be edited"
+      });
+    }
+
+    // 🔒 If loaded → limited edit
+    if (delivery.status === "loaded") {
+
+      const allowedFields = ["phone", "eta", "instructions"];
+
+      const filteredUpdates = {};
+      allowedFields.forEach(field => {
+        if (updates[field] !== undefined) {
+          filteredUpdates[field] = updates[field];
+        }
+      });
+
+      await docRef.update(filteredUpdates);
+
+      return res.json({ message: "Limited update successful" });
+    }
+
+    // ✅ If pending → full edit allowed
+    if (delivery.status === "pending") {
+
+      await docRef.update(updates);
+
+      return res.json({ message: "Delivery updated successfully" });
+    }
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+*/
 
 /* -------- GET SINGLE DELIVERY -------- */
 
@@ -304,14 +368,36 @@ app.get("/delivery/:id", async (req, res) => {
 app.post("/markLoaded/:id", upload.single("photo"), async (req,res)=>{
   try {
 
+    const refDoc = doc(db, "deliveries", req.params.id);
+    const snap = await getDoc(refDoc);
+
+    if(!snap.exists()){
+      return res.status(404).json({error:"Not found"});
+    }
+
+    const delivery = snap.data();
+
+    if(delivery.status !== "pending"){
+      return res.status(400).json({error:"Invalid status"});
+    }
+
+    let finalSerial = delivery.product_serial_number;
+
+    // If serial was not set during creation
+    if(!finalSerial){
+      if(!req.body.serial){
+        return res.status(400).json({error:"Serial required"});
+      }
+      finalSerial = req.body.serial;
+    }
+
     const storageRef = ref(storage, "delivery_proofs_loaded/" + Date.now());
     await uploadBytes(storageRef, req.file.buffer);
     const url = await getDownloadURL(storageRef);
 
-    const refDoc = doc(db, "deliveries", req.params.id);
-
     await updateDoc(refDoc, {
       status: "loaded",
+      product_serial_number: finalSerial,   // ✅ SAVE SERIAL
       loaded_timestamp: Timestamp.now(),
       loaded_location: {
         lat: req.body.lat,
@@ -319,19 +405,6 @@ app.post("/markLoaded/:id", upload.single("photo"), async (req,res)=>{
       },
       photo_loaded_url: url
     });
-
-    const snap = await getDoc(refDoc);
-    const d = snap.data();
-
-    await sendWhatsapp(
-      d.phone,
-      `Hello ${d.customer_name}, your order is OUT FOR DELIVERY.`
-    );
-
-    await sendSMS(
-      d.phone,
-      `Hariom Delivery: Your order is OUT FOR DELIVERY.`
-    );
 
     res.json({ success: true });
 
@@ -382,8 +455,20 @@ app.post("/markDelivered/:id", upload.single("photo"), async (req,res)=>{
 });
 
 //update
-app.put("/delivery/:id", authenticate, authorize(["admin"]), async (req,res)=>{
+app.put("/delivery/:id", authenticate, authorize(["admin","accountant"]), async (req,res)=>{
   const refDoc = doc(db,"deliveries",req.params.id);
+  const snap = await getDoc(refDoc);
+
+  if(!snap.exists()){
+    return res.status(404).json({error:"Not found"});
+  }
+
+  const delivery = snap.data();
+
+  if(delivery.status !== "pending"){
+    return res.status(400).json({error:"Only pending can be edited"});
+  }
+
   await updateDoc(refDoc, req.body);
   res.json({success:true});
 });
